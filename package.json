@@ -1,30 +1,31 @@
 {
-	"name": "ebus",
-	"version": "0.1.0",
-	"description": "A simple, sequential event bus",
-	"author": "Askabt (info@askabt.in)",
-	"homepage": "http://scrollback.io",
-	"keywords": [
-		"scrollback", "ebus", "event", "emitter"
-	],
-	"repository": {
-		"type": "git",
-		"path": "git://github.com/scrollback/ebus.git"
-	},
-	"bugs": "https://github.com/scrollback/ebus/issues",
-	"license": "MIT",
-	"main": "./ebus.js",
-	"scripts": {
-		"start": "node index"
-	},
-	"engines": {
-		"node": ">=0.8"
-	},
-	"dependencies": {
-		
-	},
-	"optionalDependencies": {},
-	"devDependencies": {
-		
-	}
+  "name": "ebus",
+  "version": "0.1.0",
+  "description": "A simple, sequential event bus",
+  "author": "Askabt (info@askabt.in)",
+  "homepage": "http://scrollback.io",
+  "keywords": [
+    "scrollback",
+    "ebus",
+    "event",
+    "emitter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/scrollback/ebus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/scrollback/ebus/issues"
+  },
+  "license": "MIT",
+  "main": "./ebus.js",
+  "engines": {
+    "node": ">=0.8"
+  },
+  "dependencies": {},
+  "optionalDependencies": {},
+  "devDependencies": {},
+  "directories": {
+    "test": "test"
+  }
 }
