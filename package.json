@@ -12,7 +12,6 @@
 		"path": "git://github.com/scrollback/ebus.git"
 	},
 	"bugs": "https://github.com/scrollback/ebus/issues",
-	"private": true,
 	"license": "MIT",
 	"main": "./ebus.js",
 	"scripts": {
