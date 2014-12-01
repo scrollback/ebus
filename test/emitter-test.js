@@ -35,6 +35,15 @@ var core = new (require('../ebus.js'))(priorities);
 var assert = require('assert');
 
 describe("Testing Event Bus", function(){
+	it("Emitting events with no listener", function(done){
+		core.emit("random", {id: "id"}, function(err, payload) {
+			assert.ok(!err);
+			assert.ok(payload);
+			assert.ok(payload.id === "id");
+			done();
+		});
+	});
+	
 	it("Attaching events to core", function(done){
 		core.on('text', function(message, callback){
 			var truthy = false;

@@ -90,7 +90,7 @@ Ebus.prototype.emit = function emit(event, data, cb) {
     if (this.handlers[event]) {
         fire(this.handlers[event], data, 0, cb);
     } else {
-        if (cb) cb();
+        if (cb) cb(null, data);
     }
 };
 
