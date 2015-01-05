@@ -1,3 +1,4 @@
+/*global require, module, console*/
 /*
 
 This unit test describes the working of the Event Bus (Event Emitter).
@@ -88,4 +89,61 @@ describe("Testing Event Bus", function(){
 			} 
 		});
 	});
+	
+});
+
+describe("testing invalid params:", function() {
+	it("undefined priority", function(done) {
+		try{
+			core.on("text", function(a, n) {
+				n();
+			});
+		} catch(e){
+			assert.ok(true);
+		}
+		done();
+	});
+	
+	it("false priority", function(done) {
+		try{
+			core.on("text", function(a, n) {
+				n();
+			});
+		} catch(e){
+			assert.ok(true);
+		}
+		done();
+	});
+	it("object priority", function(done) {
+		try{
+			core.on("text", function(a, n) {
+				n();
+			});
+		} catch(e){
+			assert.ok(true);
+		}
+		done();
+	});
+	it("number priority", function(done) {
+		try{
+			core.on("text", function(a, n) {
+				n();
+			}, 100);
+			assert.ok(true);
+		} catch(e){
+			assert.ok(false);
+		}
+		done();
+	});
+	it("string priority", function(done) {
+		try{
+			core.on("text", function(a, n) {
+				n();
+			}, "validation");
+			assert.ok(true);
+		} catch(e){
+			assert.ok(false);
+		}
+		done();
+	});	
 });
