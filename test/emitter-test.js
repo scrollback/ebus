@@ -31,52 +31,105 @@ var priorities = {
 	watcher: 100
 };
 
-var core = new (require('../ebus.js'))(priorities);
+var core = new(require('../ebus.js'))(priorities);
 var assert = require('assert');
 
-describe("Testing Event Bus", function(){
-	it("Attaching events to core", function(done){
-		core.on('text', function(message, callback){
+describe('Testing Event Bus', function() {
+	it('Attaching events to core', function(done) {
+		core.on('text', function(data, callback) {
 			var truthy = false;
-			message.listener200 = new Date().getTime();
-			if(message.hasOwnProperty('listener900') && message.hasOwnProperty('listener300')){
+
+			data.listener200 = new Date().getTime();
+
+			if (data.hasOwnProperty('listener900') && data.hasOwnProperty('listener300')) {
 				truthy = true;
 			}
+
 			assert.ok(truthy);
 			callback();
 		}, 200);
-		core.on('text', function(message, callback){ // 900
-			assert.ok(message.id === '1');
-			message.listener900 = new Date().getTime();
+
+		core.on('text', function(data, callback) { // 900
+			assert.ok(data.id === '1');
+
+			data.listener900 = new Date().getTime();
+
 			callback();
-		}, "validation");
-		core.on('text', 100, function(message, callback){ //100
+		}, 'validation');
+
+		core.on('text', function(data, callback) {
 			var truthy = false;
-			message.listener100 = new Date().getTime();
-			if(message.hasOwnProperty('listener900') && message.hasOwnProperty('listener300') && message.hasOwnProperty('listener200')){
+
+			data.listener300 = new Date().getTime();
+
+			if (data.hasOwnProperty('listener900')) {
 				truthy = true;
 			}
-			assert.ok(truthy);
-			callback();
-		});
-		core.on('text', function(message, callback){
-			var truthy = false;
-			message.listener300 = new Date().getTime();
-			if(message.hasOwnProperty('listener900')){
-				truthy = true;
-			}
+
 			assert.ok(truthy);
 			callback();
 		}, 300);
-		core.emit('text', {id:'1', from: 'amal', text: 'hey'}, function(err, data){
+
+		core.on('text:100', function(data, callback) { //100
 			var truthy = false;
-			if(data.hasOwnProperty('listener900') && data.hasOwnProperty('listener300') && data.hasOwnProperty('listener200') && data.hasOwnProperty('listener100')){
+
+			data.listener100 = new Date().getTime();
+
+			if (data.hasOwnProperty('listener900') && data.hasOwnProperty('listener300') && data.hasOwnProperty('listener200')) {
 				truthy = true;
 			}
-			if(!err){
+
+			assert.ok(truthy);
+			callback();
+		});
+
+		core.on('text room', function(data, callback) {
+			var truthy = false;
+
+			data.listener600 = new Date().getTime();
+
+			if (data.hasOwnProperty('listener900')) {
+				truthy = true;
+			}
+
+			assert.ok(truthy);
+			callback();
+		}, 600);
+
+		core.on('text:400 room:300', function(data, callback) {
+			var truthy = false;
+
+			data.listener400 = new Date().getTime();
+
+			if (data.hasOwnProperty('listener900') &&
+				data.hasOwnProperty('listener600')) {
+				truthy = true;
+			}
+
+			assert.ok(truthy);
+			callback();
+		});
+
+		core.on('text room', function(data) {
+			data.listenerSync = new Date().getTime();
+		});
+
+		core.emit('text', { id: '1', from: 'amal', text: 'hey' }, function(err, data) {
+			var truthy = false;
+
+			if (data.hasOwnProperty('listener900') &&
+				data.hasOwnProperty('listener400') &&
+				data.hasOwnProperty('listener300') &&
+				data.hasOwnProperty('listener200') &&
+				data.hasOwnProperty('listener100') &&
+				data.hasOwnProperty('listenerSync')) {
+				truthy = true;
+			}
+
+			if (!err) {
 				assert.ok(truthy);
-				done();	
-			} 
+				done();
+			}
 		});
 	});
 });
