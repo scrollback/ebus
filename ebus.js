@@ -1,3 +1,4 @@
+/*global require, module, console*/
 /* Bus - A generic event bus
  *
  * Use var myObj = new require('ebus')(); to inherit the functions
@@ -17,7 +18,7 @@
 
 function fire(listeners, data, i, cb) {
     if (i < listeners.length) {
-        if (debug){
+        if (this.debug){
             if (listeners[i].line) console.log("calling " + i + ":" + listeners[i].line);
             else console.log("Unable to get handler line number");
         }
@@ -33,9 +34,8 @@ function fire(listeners, data, i, cb) {
     }
 }
 
-var debug = false;
-
 function Ebus(p) {
+	this.debug = false;
     this.handlers = {};
     if(p) this.priorities = p;
     else this.priorities = {};
@@ -53,7 +53,7 @@ Ebus.prototype.on = function(event, p1, p2) {
         callback = p2;
         priority = p1;
     }
-    if(debug){
+    if(this.debug){
         err = new Error();
         if(err.stack) {
             line = err.stack.split("\n")[2];
@@ -61,9 +61,9 @@ Ebus.prototype.on = function(event, p1, p2) {
             line = event + " handler at " + line.substring(index+1);
         }
     }
-
-    if (!priority) throw new Error("INVALID_PARAMETERS");
-    else if(typeof priority === 'string') priority = this.priorities[priority];
+	
+    if (typeof priority != "number" && typeof priority != "string") throw new Error("INVALID_PARAMETERS");
+	if(typeof priority === 'string') priority = this.priorities[priority];
 
     if(typeof callback !== 'function') throw new Error("INVALID_LISTENER");
     if(!this.handlers[event]) this.handlers[event] = [];
@@ -88,10 +88,14 @@ Ebus.prototype.on = function(event, p1, p2) {
 
 Ebus.prototype.emit = function emit(event, data, cb) {
     if (this.handlers[event]) {
-        fire(this.handlers[event], data, 0, cb);
+        fire.call(this, this.handlers[event], data, 0, cb);
     } else {
-        if (cb) cb();
+        if (cb) cb(null, data);
     }
+};
+
+Ebus.prototype.setDebug = function(flag) {
+	this.debug = flag;
 };
 
 module.exports = Ebus;
