@@ -27,7 +27,7 @@ function fire(listeners, data, i, cb) {
                 if (cb) return cb(err, data);
                 else return;
             }
-            return fire(listeners, data, i + 1, cb);
+            process.nextTick(function () { fire(listeners, data, i + 1, cb); });
         });
     } else {
         if (cb) cb(null, data);
@@ -35,7 +35,7 @@ function fire(listeners, data, i, cb) {
 }
 
 function Ebus(p) {
-	this.debug = false;
+  this.debug = false;
     this.handlers = {};
     if(p) this.priorities = p;
     else this.priorities = {};
@@ -45,7 +45,7 @@ Ebus.prototype.on = function(event, p1, p2) {
     var i, line, index, err, handle;
     var pos = 0, len;
     var callback, priority;
-    
+
     if (typeof p1 === 'function') {
         callback = p1;
         priority = p2;
@@ -61,9 +61,9 @@ Ebus.prototype.on = function(event, p1, p2) {
             line = event + " handler at " + line.substring(index+1);
         }
     }
-	
+
     if (typeof priority != "number" && typeof priority != "string") throw new Error("INVALID_PARAMETERS");
-	if(typeof priority === 'string') priority = this.priorities[priority];
+  if(typeof priority === 'string') priority = this.priorities[priority];
 
     if(typeof callback !== 'function') throw new Error("INVALID_LISTENER");
     if(!this.handlers[event]) this.handlers[event] = [];
@@ -95,7 +95,7 @@ Ebus.prototype.emit = function emit(event, data, cb) {
 };
 
 Ebus.prototype.setDebug = function(flag) {
-	this.debug = flag;
+  this.debug = flag;
 };
 
 module.exports = Ebus;
