@@ -7,8 +7,8 @@ This unit test describes the working of the Event Bus (Event Emitter).
 2 of these subscribers have a priority number while the other 2 have priority categories.
 The subscirbers are of priorities 100,200,300 and 900.
 These subscribers should be fired in the descending order of their priorities.
-Each subscriber attaches a unique property to the payload object. 
-The correctness of the bus is checked by asserting the order in which the listeners were called (This is 
+Each subscriber attaches a unique property to the payload object.
+The correctness of the bus is checked by asserting the order in which the listeners were called (This is
 verified by the prescence of the uniqe properties attached by the listeners).
 
 */
@@ -44,7 +44,7 @@ describe("Testing Event Bus", function(){
 			done();
 		});
 	});
-	
+
 	it("Attaching events to core", function(done){
 		core.on('text', function(message, callback){
 			var truthy = false;
@@ -85,11 +85,11 @@ describe("Testing Event Bus", function(){
 			}
 			if(!err){
 				assert.ok(truthy);
-				done();	
-			} 
+				done();
+			}
 		});
 	});
-	
+
 });
 
 describe("testing invalid params:", function() {
@@ -103,7 +103,7 @@ describe("testing invalid params:", function() {
 		}
 		done();
 	});
-	
+
 	it("false priority", function(done) {
 		try{
 			core.on("text", function(a, n) {
@@ -145,5 +145,19 @@ describe("testing invalid params:", function() {
 			assert.ok(false);
 		}
 		done();
-	});	
+	});
+
+  it("should turn off listeners", function (done) {
+    var core2 = new (require('../ebus.js'))(priorities);
+
+    function callback() {
+      assert(false);
+    }
+
+    core.on('event1', callback, 500);
+    core.off('event1', callback);
+
+    core.emit('event1', {}, done);
+
+  });
 });

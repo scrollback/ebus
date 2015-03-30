@@ -1,4 +1,3 @@
-/*global require, module, console*/
 /* Bus - A generic event bus
  *
  * Use var myObj = new require('ebus')(); to inherit the functions
@@ -19,14 +18,22 @@
 function fire(listeners, data, i, cb) {
     if (i < listeners.length) {
         if (this.debug){
-            if (listeners[i].line) console.log("calling " + i + ":" + listeners[i].line);
-            else console.log("Unable to get handler line number");
+            if (listeners[i].line) {
+                console.log("calling " + i + ":" + listeners[i].line);
+            } else {
+                console.log("Unable to get handler line number");
+            }
         }
+
         listeners[i].fn(data, function(err /*, res */) {
             if (err) {
-                if (cb) return cb(err, data);
-                else return;
+                if (cb) {
+                    return cb(err, data);
+                } else {
+                    return;
+                }
             }
+
             return fire(listeners, data, i + 1, cb);
         });
     } else {
@@ -37,15 +44,19 @@ function fire(listeners, data, i, cb) {
 function Ebus(p) {
 	this.debug = false;
     this.handlers = {};
-    if(p) this.priorities = p;
-    else this.priorities = {};
+
+    if (p) {
+        this.priorities = p;
+    } else {
+        this.priorities = {};
+    }
 }
 
 Ebus.prototype.on = function(event, p1, p2) {
     var i, line, index, err, handle;
     var pos = 0, len;
     var callback, priority;
-    
+
     if (typeof p1 === 'function') {
         callback = p1;
         priority = p2;
@@ -53,20 +64,23 @@ Ebus.prototype.on = function(event, p1, p2) {
         callback = p2;
         priority = p1;
     }
+
     if(this.debug){
         err = new Error();
+
         if(err.stack) {
             line = err.stack.split("\n")[2];
             index = line.lastIndexOf("/");
             line = event + " handler at " + line.substring(index+1);
         }
     }
-	
-    if (typeof priority != "number" && typeof priority != "string") throw new Error("INVALID_PARAMETERS");
-	if(typeof priority === 'string') priority = this.priorities[priority];
 
-    if(typeof callback !== 'function') throw new Error("INVALID_LISTENER");
-    if(!this.handlers[event]) this.handlers[event] = [];
+    if (typeof priority != "number" && typeof priority != "string") throw new Error("INVALID_PARAMETERS");
+	if (typeof priority === 'string') priority = this.priorities[priority];
+
+    if (typeof callback !== 'function') throw new Error("INVALID_LISTENER");
+    if (!this.handlers[event]) this.handlers[event] = [];
+
     len = this.handlers[event].length;
 
     handle = {fn: callback, priority: priority};
@@ -81,12 +95,25 @@ Ebus.prototype.on = function(event, p1, p2) {
                 break;
             }
         }
+
         this.handlers[event].splice(pos, 0, handle);
     }
 
 };
 
-Ebus.prototype.emit = function emit(event, data, cb) {
+Ebus.prototype.off = function(event, cb) {
+    if (this.handlers[event]) {
+        for (var i = 0, l = this.handlers[event].length; i < l; i++) {
+            if (this.handlers[event][i].fn === cb) {
+                this.handlers[event].splice(i, 1);
+
+                break;
+            }
+        }
+    }
+};
+
+Ebus.prototype.emit = function(event, data, cb) {
     if (this.handlers[event]) {
         fire.call(this, this.handlers[event], data, 0, cb);
     } else {
