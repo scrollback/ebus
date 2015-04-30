@@ -15,32 +15,6 @@
  *   the error object returned by the listener which failed.
  */
 
-function fire(listeners, data, i, cb) {
-	if (i < listeners.length) {
-		if (this.debug){
-			if (listeners[i].line) {
-				console.log("calling " + i + ":" + listeners[i].line);
-			} else {
-				console.log("Unable to get handler line number");
-			}
-		}
-
-		listeners[i].fn(data, function(err /*, res */) {
-			if (err) {
-				if (cb) {
-					return cb(err, data);
-				} else {
-					return;
-				}
-			}
-
-			return fire(listeners, data, i + 1, cb);
-		});
-	} else {
-		if (cb) cb(null, data);
-	}
-}
-
 function Ebus(p) {
 	this.debug = false;
 	this.handlers = {};
@@ -53,7 +27,7 @@ function Ebus(p) {
 }
 
 Ebus.prototype.on = function(event, p1, p2) {
-	var i, line, index, err, handle;
+	var i, line="", index, err, handle;
 	var pos = 0, len;
 	var callback, priority;
 
@@ -72,6 +46,8 @@ Ebus.prototype.on = function(event, p1, p2) {
 			line = err.stack.split("\n")[2];
 			index = line.lastIndexOf("/");
 			line = event + " handler at " + line.substring(index+1);
+		} else {
+			line = event + " handler at " + priority;
 		}
 	}
 
@@ -85,10 +61,10 @@ Ebus.prototype.on = function(event, p1, p2) {
 
 	handle = {
         fn: callback,
-        priority: priority
+		async: callback.length >= 2,
+        priority: priority,
+		line: line
     };
-
-	if (line) handle.line = line;
 
 	if (len && priority < this.handlers[event][len - 1].priority) {
 		this.handlers[event].push(handle);
@@ -118,10 +94,47 @@ Ebus.prototype.off = function(event, cb) {
 };
 
 Ebus.prototype.emit = function(event, data, cb) {
+	var listeners, i = -1, debug = this.debug;
+	
 	if (this.handlers[event]) {
-		fire.call(this, this.handlers[event], data, 0, cb);
+		listeners = this.handlers[event];
 	} else {
-		if (cb) cb(null, data);
+		if (cb) return cb(null, data);
+	}
+	
+	function fire(err) {
+		if (err) {
+			if (cb) {
+				return cb(err, data);
+			} else {
+				return;
+			}
+		}
+		
+		i++;
+		
+		if (debug) {
+			console.log("calling " + i + ": " + listeners[i].line);
+		}
+		
+		if (i<listeners.length) {
+			if(listeners[i].async) {
+				listeners[i].fn(data, fire);
+			} else {
+				listeners[i].fn(data);
+				fire();
+			}
+		} else {
+			if (cb) cb(null, data);
+		}
+	}
+	
+	fire();
+	
+	if (debug) {
+		setTimeout(function () {
+			console.log(listeners[i].line + " may not have called next.");
+		}, 5000);
 	}
 };
 

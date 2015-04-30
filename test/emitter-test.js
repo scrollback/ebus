@@ -60,14 +60,14 @@ describe("Testing Event Bus", function(){
 			message.listener900 = new Date().getTime();
 			callback();
 		}, "validation");
-		core.on('text', 100, function(message, callback){ //100
+		core.on('text', 100, function(message){ //100
 			var truthy = false;
 			message.listener100 = new Date().getTime();
 			if(message.hasOwnProperty('listener900') && message.hasOwnProperty('listener300') && message.hasOwnProperty('listener200')){
 				truthy = true;
 			}
 			assert.ok(truthy);
-			callback();
+//			callback();
 		});
 		core.on('text', function(message, callback){
 			var truthy = false;
