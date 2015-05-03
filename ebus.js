@@ -15,8 +15,13 @@
  *   the error object returned by the listener which failed.
  */
 
+/* global performance */
+
+require("setimmediate"); // polyfills the global setImmediate
+
 function Ebus(p) {
 	this.debug = false;
+	this.yields = false;
 	this.handlers = {};
 
 	if (p) {
@@ -27,8 +32,8 @@ function Ebus(p) {
 }
 
 Ebus.prototype.on = function(event, p1, p2) {
-	var i, line="", index, err, handle;
-	var pos = 0, len;
+	var i, line="", stack, handle,
+		len;
 	var callback, priority;
 
 	if (typeof p1 === 'function') {
@@ -40,22 +45,30 @@ Ebus.prototype.on = function(event, p1, p2) {
 	}
 
 	if(this.debug){
-		err = new Error();
-
-		if(err.stack) {
-			line = err.stack.split("\n")[2];
-			index = line.lastIndexOf("/");
-			line = event + " handler at " + line.substring(index+1);
-		} else {
-			line = event + " handler at " + priority;
+		stack = new Error().stack;
+		line = event +":" + priority + " " + callback.name;
+		if(stack) {
+			line = line + "@" + stack.split("\n")[2].
+				replace(/^.*\//, "").
+				replace(/\:[^:]*$/, "");
 		}
 	}
 
-	if (typeof priority != "number" && typeof priority != "string") throw new Error("INVALID_PARAMETERS");
-	if (typeof priority === 'string') priority = this.priorities[priority];
+	if (typeof priority != "number" && typeof priority != "string") {
+		throw new Error("INVALID_PARAMETERS");
+	}
+	
+	if (typeof priority === 'string') {
+		priority = this.priorities[priority];
+	}
 
-	if (typeof callback !== 'function') throw new Error("INVALID_LISTENER");
-	if (!this.handlers[event]) this.handlers[event] = [];
+	if (typeof callback !== 'function') {
+		throw new Error("INVALID_LISTENER");
+	}
+	
+	if (!this.handlers[event]) {
+		this.handlers[event] = [];
+	}
 
 	len = this.handlers[event].length;
 
@@ -66,17 +79,11 @@ Ebus.prototype.on = function(event, p1, p2) {
 		line: line
     };
 
-	if (len && priority < this.handlers[event][len - 1].priority) {
+	if (!len || priority <= this.handlers[event][len - 1].priority) {
 		this.handlers[event].push(handle);
 	} else {
-		for(i = 0; i < len; i++) {
-			pos = i;
-			if (this.handlers[event][i].priority <= priority){
-				break;
-			}
-		}
-
-		this.handlers[event].splice(pos, 0, handle);
+		for(i = len-1; i >= 0 && this.handlers[event][i].priority < priority; i--) {}
+		this.handlers[event].splice(i+1, 0, handle);
 	}
 
 };
@@ -94,42 +101,135 @@ Ebus.prototype.off = function(event, cb) {
 };
 
 Ebus.prototype.emit = function(event, data, cb) {
-	var listeners, i = -1, debug = this.debug;
+	var listeners,
+		i = 0, li, fn, n = 0, prio, 
+		debug = this.debug, 
+		yields = this.yields,
+		actuallySync = false,
+		calledBack = false;
 	
 	if (this.handlers[event]) {
 		listeners = this.handlers[event];
 	} else {
-		if (cb) return cb(null, data);
+		if (cb) { return cb(null, data); }
+	}
+	
+	function error(err) {
+		calledBack = true;
+		if (cb) {
+			return cb(err, data);
+		} else {
+			return;
+		}
 	}
 	
 	function fire(err) {
+		if(calledBack) {
+			if(debug) { console.log("Possible duplicate callback or error at priority " + prio) }
+			return;
+		}
+		
 		if (err) {
-			if (cb) {
-				return cb(err, data);
-			} else {
+			if(debug) { console.log("Received error", prio); }
+			return error(err);
+		}
+		
+		if(n > 0) { n--; }
+		if(actuallySync) {
+			if(debug) { console.log(listeners[i].line + "can be made async to improve performance."); }
+			return;
+		};
+		if(n > 0) { return; }
+		
+		prio = listeners[i] && listeners[i].priority;
+				
+		while(true) {
+			if (i >= listeners.length) {
+				if (n === 0 && cb) {
+					calledBack = true;
+					cb(null, data);
+				}
 				return;
 			}
-		}
-		
-		i++;
-		
-		if (debug) {
-			console.log("calling " + i + ": " + listeners[i].line);
-		}
-		
-		if (i<listeners.length) {
-			if(listeners[i].async) {
-				listeners[i].fn(data, fire);
-			} else {
-				listeners[i].fn(data);
-				fire();
+			
+			li = listeners[i];
+						
+			if(li.priority !== prio) {
+				if(n > 0) {
+					// if an async listener has been fired, wait for it to be done.
+					break;
+				} else {
+					// otherwise, bump the prio and keep looping
+					prio = li.priority;
+				}
 			}
-		} else {
-			if (cb) cb(null, data);
+			
+		
+			if (debug) {
+				console.log("calling " + li.line);
+			}
+			
+			fn = li.fn;
+			
+			if(li.async) {
+				n++;
+				actuallySync = true;
+				if(debug) {
+					if(yields) {
+						setImmediate(wrapAsync(fn, data, wrapFire(li.line)));
+					} else {
+						fn(data, wrapFire(li.line));
+					}
+				} else {
+					if(yields) {
+						setImmediate(wrapAsync(fn, data, fire));
+					} else {
+						fn(data, fire);
+					}
+				}
+				actuallySync = false;
+			} else {
+				if(yields) {
+					n++;
+					setInterval(wrapSync(fn, data));
+				} else {
+					fn(data);
+				}
+			}
+			
+			
+						i++;
+
 		}
 	}
 	
-	fire();
+	function wrapFire(line) {
+		var start = process? process.hrtime() : performance? performance.now() : Date.now();
+		
+		return function (err) {
+			console.log(line + " took " + (
+				process? process.hrtime(start)[1]/1000000 : (performance? performance.now() : Date.now()) - start
+			));
+			fire(err);
+		};
+	}
+	
+	function wrapAsync(fn, data, cb) {
+		return function () { fn(data, cb); };
+	}
+	
+	function wrapSync(fn, data) {
+		return function () {
+			fn(data);
+			fire();
+		}
+	}
+	
+	try {
+		fire();
+	} catch (err) {
+		error(err);
+	}
 	
 	if (debug) {
 		setTimeout(function () {
@@ -140,6 +240,16 @@ Ebus.prototype.emit = function(event, data, cb) {
 
 Ebus.prototype.setDebug = function(flag) {
 	this.debug = flag;
+};
+
+Ebus.prototype.setYields = function(flag) {
+	this.yields = flag;
+};
+
+Ebus.prototype.dump = function (event) {
+	console.log(this.handlers[event].map(function (handler) {
+		return handler.line;
+	}).join("\n"));
 };
 
 module.exports = Ebus;
