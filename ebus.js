@@ -1,8 +1,8 @@
 /* Bus - A generic event bus
  *
- * Use var myObj = new require('ebus')(); to inherit the functions
- * Use myObj.on('event', callback) to attach event handlers
- * Use emit('event', data, callback) to trigger the event handlers
+ * Use var myObj = new require("ebus")(); to inherit the functions
+ * Use myObj.on("event", callback) to attach event handlers
+ * Use emit("event", data, callback) to trigger the event handlers
  *
  *   Each listener is called with two parameters, data and a function.
  *
@@ -16,10 +16,13 @@
  */
 
 /* global performance */
+/* eslint-env node */
 
 require("setimmediate"); // polyfills the global setImmediate
 
 function Ebus(p) {
+	"use strict";
+	
 	this.debug = false;
 	this.yields = false;
 	this.handlers = {};
@@ -31,12 +34,13 @@ function Ebus(p) {
 	}
 }
 
-Ebus.prototype.on = function(event, p1, p2) {
-	var i, line="", stack, handle,
-		len;
-	var callback, priority;
+Ebus.prototype.on = function (event, p1, p2) {
+	"use strict";
+	
+	var i, line = "", stack, handle,
+		len, callback, priority;
 
-	if (typeof p1 === 'function') {
+	if (typeof p1 === "function") {
 		callback = p1;
 		priority = p2;
 	} else {
@@ -44,26 +48,27 @@ Ebus.prototype.on = function(event, p1, p2) {
 		priority = p1;
 	}
 
-	if(this.debug){
+	if (this.debug) {
 		stack = new Error().stack;
-		line = event +":" + priority + " " + callback.name;
-		if(stack) {
+		line = event + ":" + priority + " " + callback.name;
+		if (stack) {
 			line = line + "@" + stack.split("\n")[2].
 				replace(/^.*\//, "").
 				replace(/\:[^:]*$/, "");
 		}
 	}
 
-	if (typeof priority != "number" && typeof priority != "string") {
-		throw new Error("INVALID_PARAMETERS");
-	}
-	
-	if (typeof priority === 'string') {
+	if (typeof priority === "string") {
 		priority = this.priorities[priority];
 	}
 
-	if (typeof callback !== 'function') {
-		throw new Error("INVALID_LISTENER");
+	if (typeof priority !== "number") {
+		priority = 0;
+//		throw new Error("EBUS_INVALID_PRIORITY");
+	}
+	
+	if (typeof callback !== "function") {
+		throw new Error("EBUS_INVALID_LISTENER");
 	}
 	
 	if (!this.handlers[event]) {
@@ -82,15 +87,21 @@ Ebus.prototype.on = function(event, p1, p2) {
 	if (!len || priority <= this.handlers[event][len - 1].priority) {
 		this.handlers[event].push(handle);
 	} else {
-		for(i = len-1; i >= 0 && this.handlers[event][i].priority < priority; i--) {}
-		this.handlers[event].splice(i+1, 0, handle);
+		for(i = len - 1; i >= 0; i--) {
+			if(this.handlers[event][i].priority >= priority) { break; }
+		}
+		this.handlers[event].splice(i + 1, 0, handle);
 	}
 
 };
 
 Ebus.prototype.off = function(event, cb) {
+	"use strict";
+	
+	var i, l;
+	
 	if (this.handlers[event]) {
-		for (var i = 0, l = this.handlers[event].length; i < l; i++) {
+		for (i = 0, l = this.handlers[event].length; i < l; i++) {
 			if (this.handlers[event][i].fn === cb) {
 				this.handlers[event].splice(i, 1);
 
@@ -101,152 +112,166 @@ Ebus.prototype.off = function(event, cb) {
 };
 
 Ebus.prototype.emit = function(event, data, cb) {
-	var listeners,
-		i = 0, li, fn, n = 0, prio, 
+	"use strict";
+	
+	var listeners = this.handlers[event],
+		status = {},
+		i = 0,
+		runningCount = 0,
+		calledBack = false,
+		li,
+		prio,
+		
 		debug = this.debug, 
 		yields = this.yields,
-		actuallySync = false,
-		calledBack = false;
+		timer,
+		
+		RUNNING = 1,
+		SUCCESS = 2,
+		ERROR = 3;
 	
-	if (this.handlers[event]) {
-		listeners = this.handlers[event];
-	} else {
-		if (cb) { return cb(null, data); }
+	if (!listeners) {
+		if (cb) { cb(null, data); }
+		return;
+	}
+	
+	function success () {
+		if(timer) { clearTimeout(timer); }
+		calledBack = true;
+		
+		if(cb) { cb(null, data); }
+		
+		return;
 	}
 	
 	function error(err) {
+		if(timer) { clearTimeout(timer); }
 		calledBack = true;
-		if (cb) {
-			return cb(err, data);
-		} else {
-			return;
+		
+		if (cb) { cb(err, data); }
+		return;
+	}
+	
+	function dumpStatus() {
+		for(var j in status) {
+			console.log(listeners[j].line + " -- " + ["Running", "Success", "Error"][status[j] - 1]);
 		}
 	}
 	
-	function fire(err) {
-		if(calledBack) {
-			if(debug) { console.log("Possible duplicate callback or error at priority " + prio) }
-			return;
-		}
+	function getNext(prevIx) {
+		var start;
 		
-		if (err) {
-			if(debug) { console.log("Received error", prio); }
-			return error(err);
-		}
-		
-		if(n > 0) { n--; }
-		if(actuallySync) {
-			if(debug) { console.log(listeners[i].line + "can be made async to improve performance."); }
-			return;
-		};
-		if(n > 0) { return; }
-		
-		prio = listeners[i] && listeners[i].priority;
-				
-		while(true) {
-			if (i >= listeners.length) {
-				if (n === 0 && cb) {
-					calledBack = true;
-					cb(null, data);
-				}
-				return;
-			}
-			
-			li = listeners[i];
-						
-			if(li.priority !== prio) {
-				if(n > 0) {
-					// if an async listener has been fired, wait for it to be done.
-					break;
-				} else {
-					// otherwise, bump the prio and keep looping
-					prio = li.priority;
-				}
-			}
-			
-		
-			if (debug) {
-				console.log("calling " + li.line);
-			}
-			
-			fn = li.fn;
-			
-			if(li.async) {
-				n++;
-				actuallySync = true;
-				if(debug) {
-					if(yields) {
-						setImmediate(wrapAsync(fn, data, wrapFire(li.line)));
-					} else {
-						fn(data, wrapFire(li.line));
-					}
-				} else {
-					if(yields) {
-						setImmediate(wrapAsync(fn, data, fire));
-					} else {
-						fn(data, fire);
-					}
-				}
-				actuallySync = false;
-			} else {
-				if(yields) {
-					n++;
-					setInterval(wrapSync(fn, data));
-				} else {
-					fn(data);
-				}
-			}
-			
-			
-						i++;
+		if(typeof prevIx !== "undefined") { // Skip when invoking first listener
+			status[prevIx] = RUNNING;
+			runningCount++;
 
+			if(debug) {
+				start = process ? process.hrtime() : performance ? performance.now() : Date.now();
+			}
 		}
-	}
-	
-	function wrapFire(line) {
-		var start = process? process.hrtime() : performance? performance.now() : Date.now();
 		
 		return function (err) {
-			console.log(line + " took " + (
-				process? process.hrtime(start)[1]/1000000 : (performance? performance.now() : Date.now()) - start
-			));
-			fire(err);
+			
+			if(typeof prevIx !== "undefined") { // Skip when invoking first listener
+				if(debug) {
+					console.log(listeners[prevIx].line + " called next after " + (
+						process ? process.hrtime(start)[1] / 1000000 : (performance ? performance.now() : Date.now()) - start
+					));
+				}
+				
+				if(calledBack) {
+					if(debug) { console.log("Next() after emit called back" + listeners[prevIx].line); }
+					return;
+				}
+
+				if(status[prevIx] !== RUNNING) {
+					if(debug) { console.log("Multiple next() from " + listeners[prevIx].line); }
+					throw Error("EBUS_MULTIPLE_NEXT");
+				}
+
+				if (err) {
+					status[prevIx] = ERROR;
+					if(debug) { console.log("Received error from " + listeners[prevIx].line + ":\n", err); }
+					error(err);
+					return;
+				}
+
+				status[prevIx] = SUCCESS;
+
+				if(runningCount > 0) { runningCount--; }
+				if(prevIx === i) {
+					if(debug) { console.log("Sync callback from " + listeners[i].line); }
+					return;
+				}
+				if(runningCount > 0) { return; }
+			}
+
+			prio = listeners[i] && listeners[i].priority;
+			
+			
+			try {
+				while(true) {
+					if (i >= listeners.length) {
+						if (runningCount === 0) {
+							success(data);
+						}
+						return;
+					}
+
+					li = listeners[i];
+
+					if(li.priority !== prio) {
+						if(runningCount > 0) {
+							// if an async listener has been fired, wait for it to be done.
+							break;
+						} else {
+							// otherwise, bump the prio and keep looping
+							prio = li.priority;
+						}
+					}
+
+					if (debug) {
+						console.log("Calling " + li.line);
+					}
+
+					if(li.async) {
+						li.fn.call(null, data, getNext(i));
+					} else {
+						li.fn.call(null, data);
+					}
+
+					i++;
+				}
+			} catch (e) {
+				// An error was thrown synchronously.
+				error(e);
+			}
 		};
-	}
-	
-	function wrapAsync(fn, data, cb) {
-		return function () { fn(data, cb); };
-	}
-	
-	function wrapSync(fn, data) {
-		return function () {
-			fn(data);
-			fire();
-		}
-	}
-	
-	try {
-		fire();
-	} catch (err) {
-		error(err);
 	}
 	
 	if (debug) {
-		setTimeout(function () {
-			console.log(listeners[i].line + " may not have called next.");
+		timer = setTimeout(function () {
+			console.log("Emit timed out. Status:");
+			dumpStatus();
 		}, 5000);
 	}
+	
+	getNext()();
 };
 
 Ebus.prototype.setDebug = function(flag) {
+	"use strict";
 	this.debug = flag;
 };
 
 Ebus.prototype.setYields = function(flag) {
+	"use strict";
+	console.log("Yields is not yet supported");
 	this.yields = flag;
 };
 
 Ebus.prototype.dump = function (event) {
+	"use strict";
 	console.log(this.handlers[event].map(function (handler) {
 		return handler.line;
 	}).join("\n"));

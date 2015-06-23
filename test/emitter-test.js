@@ -284,7 +284,7 @@ describe('sync, async mix', function () {
 			e = "test";
 		
 		bus.setDebug(true);
-		bus.setYields(true);
+//		bus.setYields(true);
 		
 		bus.on(e, function (d, next) {
 			process.nextTick(function () {
