@@ -278,45 +278,4 @@ describe('sync, async mix', function () {
 			assert.equal(err.message, 'testing');
 		});
 	});
-	
-	it('should handle sync errors correctly', function () {
-		var bus = new (require('../ebus.js'))(),
-			e = "test";
-		
-		bus.setDebug(true);
-//		bus.setYields(true);
-		
-		bus.on(e, function (d, next) {
-			process.nextTick(function () {
-				next();
-			});
-		}, 900);
-		
-		bus.on(e, function () {
-			throw (Error('testing'));
-		}, 900);
-		
-		bus.on(e, function (d, next) {
-			process.nextTick(function () {
-				next(Error('testing2'));
-			});
-		}, 900);
-
-				
-		bus.on(e, function (d, next) {
-			next(Error('testing2'));
-		}, 900);
-				
-		bus.on(e, function (d, next) {
-			next();
-		}, 900);
-		
-		bus.on(e, function (d) {
-			assert(false, 'Function was called after error');
-		}, 800);
-		
-		bus.emit(e, {}, function (err, d) {
-			assert.equal(err.message, 'testing');
-		});
-	});
 });

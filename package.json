@@ -1,6 +1,6 @@
 {
   "name": "ebus",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "A simple, sequential event bus",
   "author": "Askabt (info@askabt.in)",
   "homepage": "http://scrollback.io",
