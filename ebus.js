@@ -126,7 +126,7 @@ Ebus.prototype.off = function(event, cb) {
 Ebus.prototype.emit = function(event, data, cb) {
 	"use strict";
 	
-	var listeners = this.handlers[event],
+	var listeners = this.handlers[event] || [],
 		status = {},
 		i = 0,
 		runningCount = 0,
@@ -220,7 +220,9 @@ Ebus.prototype.emit = function(event, data, cb) {
 			prio = listeners[i] && listeners[i].priority;
 			
 			while(true) {
+				console.log("I AND LENGTH", i, listeners.length);
 				if (i >= listeners.length) {
+					console.log("RUNNING COUNT", runningCount);
 					if (runningCount === 0) {
 						success(data);
 					}
