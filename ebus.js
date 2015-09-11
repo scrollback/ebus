@@ -150,7 +150,9 @@ Ebus.prototype.emit = function(event, data, cb) {
 		if(timer) { clearTimeout(timer); }
 		calledBack = true;
 		
-		if(cb) { cb(null, data); }
+		if(cb) {
+			setImmediate(function () { cb(null, data); });
+		}
 		
 		return;
 	}
@@ -159,7 +161,9 @@ Ebus.prototype.emit = function(event, data, cb) {
 		if(timer) { clearTimeout(timer); }
 		calledBack = true;
 		
-		if (cb) { cb(err, data); }
+		if (cb) { 
+			setImmediate(function () { cb(err, data); }); 
+		}
 		return;
 	}
 	
@@ -182,7 +186,6 @@ Ebus.prototype.emit = function(event, data, cb) {
 		}
 		
 		return function (err) {
-			
 			if(typeof prevIx !== "undefined") { // Skip when invoking first listener
 				if(debug > 4) {
 					console.log(listeners[prevIx].line + " called next after " + (
@@ -218,7 +221,7 @@ Ebus.prototype.emit = function(event, data, cb) {
 			}
 
 			prio = listeners[i] && listeners[i].priority;
-			
+		
 			while(true) {
 				console.log("I AND LENGTH", i, listeners.length);
 				if (i >= listeners.length) {
@@ -246,7 +249,12 @@ Ebus.prototype.emit = function(event, data, cb) {
 				if(li.async) {
 					li.fn.call(null, data, getNext(i));
 				} else {
-					li.fn.call(null, data);
+					try{
+						li.fn.call(null, data);
+					}
+					catch(e){
+						error(e);
+					}
 				}
 
 				i++;
