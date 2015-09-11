@@ -223,9 +223,7 @@ Ebus.prototype.emit = function(event, data, cb) {
 			prio = listeners[i] && listeners[i].priority;
 		
 			while(true) {
-				console.log("I AND LENGTH", i, listeners.length);
 				if (i >= listeners.length) {
-					console.log("RUNNING COUNT", runningCount);
 					if (runningCount === 0) {
 						success(data);
 					}
@@ -249,12 +247,7 @@ Ebus.prototype.emit = function(event, data, cb) {
 				if(li.async) {
 					li.fn.call(null, data, getNext(i));
 				} else {
-					try{
-						li.fn.call(null, data);
-					}
-					catch(e){
-						error(e);
-					}
+					li.fn.call(null, data);
 				}
 
 				i++;

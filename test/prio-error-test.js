@@ -1,41 +1,38 @@
 /* eslint-env mocha */
 
 "use strict";
-
+var assert = require("assert");
 var core = new (require("../ebus"))({
 	high: 900,
 	low: 100
 });
 
-core.setDebug(true);
+core.setDebug(1);
 
 it ('should abort when error is thrown', function (done) {
+	var t=0;
 	core.on('e', function (o, next) {
-		console.log("Called :(");
-//		done(Error("This should not have been called"));
+		t++;
+		assert.fail("it should not come here because high priority has thrown error");
+		next();
 	}, 'low');
 	
 
 	core.on('e', function (o, next) {
-		console.log("2");
-		process.nextTick(next);
-		process.nextTick(next);
-//		next();
-//		next();
+		t++;
+		next();
 	}, 'high');	
 	
 	
 	core.on('e', function (o, next) {
-		console.log("1");
-//		next(Error('ERR_TO_CATCH'));
-		setTimeout(function () {
-			next(Error('ERR_TO_BE_CAUGHT'));
-		}, 500);
+		t++;
+		next(Error('ERR_TO_BE_CAUGHT'));
 	}, 'high');
 
 	
 	core.emit('e', {}, function (err, obj) {
-		console.log("CB got ", err, obj);
+		assert(err, "Error is not shown");
+		assert(t === 2,"low priority listener is executing");
 		done();
 	});
 });
