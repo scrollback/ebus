@@ -34,8 +34,8 @@ var priorities = {
 
 var core = new (require('../ebus.js'))(priorities);
 
-core.setDebug(true);
-core.setYields(true);
+// core.setDebug(true);
+// core.setYields(true);
 
 var assert = require('assert');
 

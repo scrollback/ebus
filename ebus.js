@@ -126,7 +126,7 @@ Ebus.prototype.off = function(event, cb) {
 Ebus.prototype.emit = function(event, data, cb) {
 	"use strict";
 	
-	var listeners = this.handlers[event],
+	var listeners = this.handlers[event] || [],
 		status = {},
 		i = 0,
 		runningCount = 0,
@@ -150,7 +150,9 @@ Ebus.prototype.emit = function(event, data, cb) {
 		if(timer) { clearTimeout(timer); }
 		calledBack = true;
 		
-		if(cb) { cb(null, data); }
+		if(cb) {
+			setImmediate(function () { cb(null, data); });
+		}
 		
 		return;
 	}
@@ -159,7 +161,9 @@ Ebus.prototype.emit = function(event, data, cb) {
 		if(timer) { clearTimeout(timer); }
 		calledBack = true;
 		
-		if (cb) { cb(err, data); }
+		if (cb) { 
+			setImmediate(function () { cb(err, data); }); 
+		}
 		return;
 	}
 	
@@ -182,7 +186,6 @@ Ebus.prototype.emit = function(event, data, cb) {
 		}
 		
 		return function (err) {
-			
 			if(typeof prevIx !== "undefined") { // Skip when invoking first listener
 				if(debug > 4) {
 					console.log(listeners[prevIx].line + " called next after " + (
@@ -218,7 +221,7 @@ Ebus.prototype.emit = function(event, data, cb) {
 			}
 
 			prio = listeners[i] && listeners[i].priority;
-			
+		
 			while(true) {
 				if (i >= listeners.length) {
 					if (runningCount === 0) {
